@@ -384,7 +384,7 @@ dreamengine.loadAssets = function(assets, callback) {
 dreamengine.scene = function(game, methods) {
 	//properties
 	this.game = game;
-	this.entities = {};
+	this.components = {};
 
 	//methods
 	this.update = function() {
@@ -423,6 +423,93 @@ dreamengine.scene = function(game, methods) {
 		this.init();
 	}
 }
+
+
+
+/*------------------------------
+ * Event
+ *------------------------------*/
+dreamengine.event = function() {
+	this.listeners = [];
+	
+	this.bind = function(eventName, closure, priority) {
+		//validate
+		if (typeof eventName != 'string' || typeof closure != 'function') {
+			return false;
+		}
+		priority = (priority != undefined) ? priority : 50;
+
+		var explode = eventName.split('.');
+		var eventName = explode[0];
+		if (typeof explode[1] == 'string') {
+			var eventSpace = explode[1];
+		}
+
+		//make sure the event name exists on the listener stack
+		if (this.listeners[eventName] == undefined) {
+			this.listeners[eventName] = [];
+		}
+
+		//make sure the priority exists
+		if (this.listeners[eventName][priority] == undefined) {
+			this.listeners[eventName][priority] = [];
+		}
+
+		//are we namespacing it?
+		if (eventSpace != undefined) {
+			//namespaced
+			if (this.listeners[eventName][priority][eventSpace] == undefined) {
+				this.listeners[eventName][priority][eventSpace] = [];
+			}
+			this.listeners[eventName][priority][eventSpace].push(closure);
+		}else {
+			//not namespaced
+			this.listeners[eventName][priority].push(closure);
+		}
+	}
+
+	this.unbind = function(eventName) {
+		var explode = eventName.split('.');
+		var eventName = explode[0];
+		if (typeof explode[1] == 'string') {
+			var eventSpace = explode[1];
+		}
+
+		if (this.listeners[eventName] != undefined) {
+			if (eventSpace == undefined) {
+				this.listeners[eventName] = [];
+			}else {
+				//namespaced
+			}
+		}
+	};
+
+	this.trigger = function(eventName, params) {
+		
+		if (this.listeners[eventName] != undefined) {
+			for (var i in this.listeners[eventName]) {
+				var priority = this.listeners[eventName][i];
+
+				for (var i in priority) {
+					if (typeof params != undefined) {
+						if (typeof priority[i] == 'function') {
+							priority[i](params);
+						}else if (typeof priority[i] == 'array') {
+							for (var ii in priority[i]) {
+								priority[i][ii](params);
+							}
+						}
+					}else {
+						var params = priority[i]();
+					}
+				}
+			}
+		}
+
+		return params;
+	}
+};
+dreamengine.event.event = new dreamengine.event();
 
 
 /*-------------------

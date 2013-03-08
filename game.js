@@ -5,8 +5,8 @@
  * the dreamengine files are stored
  *------------------------------*/
 dreamengine.setup({
-	dreamengineURL: 'http://localhost/dreamengine/dreamengine/',
-	projectURL: 'http://localhost/dreamengine/project/',
+	dreamengineURL: 'http://dev/rpg2/dreamengine/',
+	projectURL: 'http://dev/rpg2/project/',
 });
 
 
@@ -62,9 +62,9 @@ dreamengine.loadAssets({
 				init: function() {
 					//create the player entity
 					var player = new dreamengine.Entity(game, 'Player', game.canvas.width / 2, game.canvas.height / 2);
-					console.log(player);
+					
 					player.debug = true;
-					this.addEntity(player);
+					this.addEntity('player', player);
 				}
 			});
 
