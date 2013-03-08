@@ -216,7 +216,7 @@ dreamengine.loadModules = function(modules, callback) {
 	}
 
 	if (typeof callback == 'function') {
-		var interval = setInterval(funtion() {
+		var interval = setInterval(function() {
 			var ready = true;
 			for (var i in dreamengine.loadedModules) {
 				if (dreamengine.loadedModules[i] != true) {
@@ -342,6 +342,9 @@ dreamengine.loadImages = function(images, callback) {
  * Assets
  *------------------------------*/
 dreamengine.loadAssets = function(assets, callback) {
+	//modules
+	dreamengine.loadModules(assets['modules']);
+
 	//images
 	dreamengine.loadImages(assets['images']);
 	
@@ -351,11 +354,20 @@ dreamengine.loadAssets = function(assets, callback) {
 	//set interval to check for load, then run callback
 	var interval = setInterval(function() {
 		var ready = true;
+		//loop through images
 		for (var i in dreamengine.images) {
 			if (dreamengine.images[i] == false) {
 				ready = false;
 			}
 		}
+
+		//loop through modules
+		for (var i in dreamengine.modulesReady) {
+			if (dreamengine.modulesReady[i] != true) {
+				ready = false;
+			}
+		}
+
 		if (ready == true) {
 			clearInterval(interval);
 			if (typeof callback == 'function') {
@@ -422,6 +434,12 @@ dreamengine.dimension = function(w, h) {
 };
 
 dreamengine.vector = function(x, y) {
+	if (x == undefined) {
+		x = 0;
+	}
+	if (y == undefined) {
+		y = 0;
+	}
 	this.x = x;
 	this.y = y;
 

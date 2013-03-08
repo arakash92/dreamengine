@@ -25,12 +25,6 @@ game.ctx.mozImageSmoothingEnabled = false;
 game.ctx.webkitImageSmoothingEnabled = false;
 
 
-/*------------------------------
- * Load some modues
- *------------------------------*/
-//dreamengine.loadModule('Entity');
-dreamengine.loadModule('Component')
-
 
 /*------------------------------
  * Load all the assets for
@@ -43,6 +37,7 @@ dreamengine.loadAssets({
 	'sounds': {
 		'loading': 'sounds/loading.mp3',
 	},
+	'modules': 'Entity',
 }, function() {
 	/*------------------------------
 	 * Setup the loading screen
@@ -56,17 +51,38 @@ dreamengine.loadAssets({
 			//set the scene
 			game.setScene(this);
 
+
+
 			//run the game
 			game.run();
+		},
+
+		startGame: function() {
+			var gameScreen = new dreamengine.scene(game, {
+				init: function() {
+					//create the player entity
+					var player = new dreamengine.Entity(game, 'Player', game.canvas.width / 2, game.canvas.height / 2);
+					console.log(player);
+					player.debug = true;
+					this.addEntity(player);
+				}
+			});
+
+
+			game.setScene(gameScreen);
 		},
 
 		onUpdate: function() {
 			this.increment += 0.0001;
 			this.logoOpacity += this.increment;
 			this.size += this.increment;
-
+			
 			if (this.size > 3) {
 				this.size = 3;
+			}
+
+			if (this.logoOpacity > 1) {
+				this.startGame();
 			}
 		},
 

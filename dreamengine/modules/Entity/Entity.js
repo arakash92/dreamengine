@@ -18,7 +18,7 @@ dreamengine.registerModule('Entity')
 			/*------------------------------
 			 * Constructor
 			 *------------------------------*/
-			this.pos.x (x != undefined) ? x : 0;
+			this.pos.x = (x != undefined) ? x : 0;
 			this.pos.y = (y != undefined) ? y : 0;
 
 			/*------------------------------
@@ -71,6 +71,13 @@ dreamengine.registerModule('Entity')
 
 		dreamengine.scene.prototype.entities = [];
 		dreamengine.scene.prototype.addEntity = function(name, entity) {
+			if (typeof name != 'string') {
+				alert('scene.addEntity expects parameter 1 to be string');
+				return false;
+			}
+			if (typeof entity != 'object') {
+				alert('scene.addENtity expects parameter 2 to be Entity object');
+			}
 			this.entities[name] = entity;
 		}
 		dreamengine.scene.removeEntity = function(name) {
