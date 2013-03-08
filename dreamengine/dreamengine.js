@@ -121,7 +121,7 @@ function dreamengine(wrapper, options) {
 			self.prevTime = self.currentTime;
 
 			//deltaTime should be 16.666. (time between updates)
-			//we need to divide self by 16.6666 (frame_time)
+			//we need to divide deltatime by 16.6666 (frame_time)
 			if (self.perSecond == null) {
 				self.perSecond = self.currentTime;
 			}
@@ -189,12 +189,113 @@ dreamengine.setup = function(settings) {
 dreamengine.loadedModules = {
 
 };
+
 dreamengine.loadModule = function(name, callback) {
+	console.log('loading module ' + name +'...');
 	dreamengine.loadedModules[name] = false;
 
-	$.post(dreamengine.baseURL +'modules/' + name +'/' + name +'.js', function(data) {
-		console.log(data);
-	});
+	var src = dreamengine.settings.dreamengineURL +'modules/' + name +'/' + name +'.js';
+	$("head").append("<script type='text/javascript' src='" + src +"' rel='dreamengine-module'></script>");
+
+	//set an interval to check when the module is defined
+	if (typeof callback == 'function') {
+		var interval = setInterval(function() {
+			if (dreamengine.loadedModules[name] == true) {
+				callback();
+			}
+		}, 50);
+	}
+};
+
+dreamengine.loadModules = function(modules, callback) {
+	var modules = modules.replace(' ', '');
+	modules = modules.split(',');
+	for (var i in modules) {
+		var mod = modules[i];
+		dreamengine.loadModule(mod);
+	}
+
+	if (typeof callback == 'function') {
+		var interval = setInterval(funtion() {
+			var ready = true;
+			for (var i in dreamengine.loadedModules) {
+				if (dreamengine.loadedModules[i] != true) {
+					ready = false;
+				}
+			}
+			if (ready) {
+				clearInterval(interval);
+				callback();
+			}
+		}, 50);
+	}
+}
+
+dreamengine.modules = {};
+
+dreamengine.registerModule = function(name) {
+	console.log('dreamengine.modules.' + name +' is being registered...');
+	dreamengine.modules[name] = {
+		name: name,
+		ready: true,
+		requires: function(modules) {
+			console.log(this.name +' requires the following modules: ' + modules);
+			var self = this;
+			this.ready = false;
+			modules = modules.replace(' ', '');
+			modules = modules.split(',');
+
+			var modulesReady = {};
+			for (var i in modules) {
+				modulesReady[modules[i]] = false;
+			}
+
+			for (var i in modules) {
+				var mod = modules[i];
+				if (dreamengine.loadedModules[mod] != true) {
+					console.log('module ' + mod +' is not loaded, loading it...');
+					dreamengine.loadModule(mod, function() {
+						modulesReady[mod] = true;
+					});
+				}
+			}
+			//set an interval to check when dependenies are ready
+			var interval = setInterval(function() {
+				var ready = true;
+				for (var i in modulesReady) {
+					if (modulesReady[i] == false) {
+						ready = false;
+					}
+				}
+				if (ready == true) {
+					clearInterval(interval);
+					self.ready = true;
+				}
+			}, 50);
+			return this;
+		},
+		defines: function(callback) {
+			console.log(this.name +' is defining...');
+			var self = this;
+			if (this.ready) {
+				console.log('running callback');
+				callback();
+				dreamengine.loadedModules[self.name] = true;
+			}else {
+				var interval = setInterval(function() {
+					if (self.ready) {
+						console.log('Dependencies are ready, running define callback now');
+						clearInterval(interval);
+						callback();
+						dreamengine.loadedModules[self.name] = true;
+					}
+				}, 50);
+			}
+			
+			return this;
+		},
+	};
+	return dreamengine.modules[name];
 };
 
 
@@ -269,8 +370,9 @@ dreamengine.loadAssets = function(assets, callback) {
  * Scenes
  *------------------------------*/
 dreamengine.scene = function(game, methods) {
-	//set game var
+	//properties
 	this.game = game;
+	this.entities = {};
 
 	//methods
 	this.update = function() {
