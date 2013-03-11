@@ -32,6 +32,13 @@
 
 function dreamengine(wrapper, options) {
 	var self = this;
+
+	/* require libraries */
+	// jquery hotkeys
+	if ($.hotkeys == undefined) {
+		$("head").append('<script type="text/javascript" src="' +dreamengine.settings.dreamengineURL +'core/jquery.hotkeys.js"></script>');
+	}
+
 	/* options */
 	this.options = {
 		fps: 60,
@@ -58,6 +65,11 @@ function dreamengine(wrapper, options) {
 			width = height * 16/9;
 		}
 
+		if (width > $(window).width()) {
+			width = $(window).width();
+			height = width / 16*9;
+		}
+
 		this.wrapper.css({
 			width: width,
 			height: height,
@@ -75,6 +87,10 @@ function dreamengine(wrapper, options) {
 	//create debug
 	this.wrapper.append('<div style="color: white;" class="debug"></div>');
 	
+	/* systems */
+	this.event = new dreamengine.event();
+	this.input = new dreamengine.input(this);
+
 
 	/* gameloop stuff */
 	this.frame_time  = 0;		//amount of time in MS for one update
@@ -384,34 +400,55 @@ dreamengine.loadAssets = function(assets, callback) {
 dreamengine.scene = function(game, methods) {
 	//properties
 	this.game = game;
-	this.components = {};
+	this.layers = [];
+	this.event = new dreamengine.event();
 
 	//methods
-	this.update = function() {
 
-		for(var i in this.components) {
-			var comp = this.components[i];
-			if (typeof comp.update == 'function') {
-				comp.update();
+	this.addEntity = function(layer, entity) {
+		if (this.layers[layer] == undefined) {
+			this.layers[layer] = [];
+		}
+		this.layers[layer].push(entity);
+	}
+
+	this.update = function() {
+		this.event.trigger('update_pre');
+
+		for (var i in this.layers) {
+			var layer = this.layers[i];
+			for(var i in layer) {
+				var entity = layer[i];
+				if (typeof entity.update == 'function') {
+					entity.update();
+				}
 			}
 		}
 
 		if (typeof this.onUpdate == 'function') {
 			this.onUpdate();
 		}
+
+		this.event.trigger('update_post');
 	}
 
 	this.render = function(ctx) {
-		for (var i in this.components) {
-			var comp = this.components[i];
-			if (typeof comp.render == 'function') {
-				comp.render(ctx);
+		this.event.trigger('render_pre', [ctx]);
+
+		for (var i in this.layers) {
+			var layer = this.layers[i];
+			for(var i in layer) {
+				var entity = layer[i];
+				if (typeof entity.update == 'function') {
+					entity.render(ctx);
+				}
 			}
 		}
 
 		if (typeof this.onRender == 'function') {
 			this.onRender(ctx);
 		}
+		this.event.trigger('render_post', [ctx]);
 	}
 
 	//override methods
@@ -424,6 +461,130 @@ dreamengine.scene = function(game, methods) {
 	}
 }
 
+
+/*------------------------------
+ * Input
+ *------------------------------*/
+dreamengine.input = function(game) {
+	var self = this;
+	this.game = game;	
+	this.keys = {};
+
+	$(document).keydown(function(e) {
+		//console.log(+'input down: ' + e.which + ' = ' + dreamengine.input.keyNames[e.which]);
+		self.keys[dreamengine.input.keyNames[e.which]] = true;
+	});
+
+	$(document).keyup(function(e) {
+		self.keys[dreamengine.input.keyNames[e.which]] = false;
+	});
+}
+dreamengine.input.keyCodes = {
+		'backspace':8,
+		'tab':9,
+		'enter':13,
+		'shift':16,
+		'ctrl':17,
+		'alt':18,
+		'pause_break':19,
+		'caps_lock':20,
+		'escape':27,
+		'page_up':33,
+		'page down':34,
+		'end':35,
+		'home':36,
+		'left_arrow':37,
+		'up_arrow':38,
+		'right_arrow':39,
+		'down_arrow':40,
+		'insert':45,
+		'delete':46,
+		'0':48,
+		'1':49,
+		'2':50,
+		'3':51,
+		'4':52,
+		'5':53,
+		'6':54,
+		'7':55,
+		'8':56,
+		'9':57,
+		'a':65,
+		'b':66,
+		'c':67,
+		'd':68,
+		'e':69,
+		'f':70,
+		'g':71,
+		'h':72,
+		'i':73,
+		'j':74,
+		'k':75,
+		'l':76,
+		'm':77,
+		'n':78,
+		'o':79,
+		'p':80,
+		'q':81,
+		'r':82,
+		's':83,
+		't':84,
+		'u':85,
+		'v':86,
+		'w':87,
+		'x':88,
+		'y':89,
+		'z':90,
+		'left_window key':91,
+		'right_window key':92,
+		'select_key':93,
+		'numpad 0':96,
+		'numpad 1':97,
+		'numpad 2':98,
+		'numpad 3':99,
+		'numpad 4':100,
+		'numpad 5':101,
+		'numpad 6':102,
+		'numpad 7':103,
+		'numpad 8':104,
+		'numpad 9':105,
+		'multiply':106,
+		'add':107,
+		'subtract':109,
+		'decimal point':110,
+		'divide':111,
+		'f1':112,
+		'f2':113,
+		'f3':114,
+		'f4':115,
+		'f5':116,
+		'f6':117,
+		'f7':118,
+		'f8':119,
+		'f9':120,
+		'f10':121,
+		'f11':122,
+		'f12':123,
+		'num_lock':144,
+		'scroll_lock':145,
+		'semi_colon':186,
+		'equal_sign':187,
+		'comma':188,
+		'dash':189,
+		'period':190,
+		'forward_slash':191,
+		'grave_accent':192,
+		'open_bracket':219,
+		'backslash':220,
+		'closebracket':221,
+		'single_quote':222
+	};
+
+dreamengine.input.keyNames = {};
+for (var i in dreamengine.input.keyCodes) {
+	var value = dreamengine.input.keyCodes[i];
+	dreamengine.input.keyNames[value] = i;
+}
 
 
 /*------------------------------

@@ -16,6 +16,7 @@ dreamengine.registerModule('Entity')
 			this.nameAppend = '';
 			this.debug = false;
 			this.pos = new dreamengine.vector();
+			this.size = new dreamengine.dimension(10,10);
 			this.event = new dreamengine.event();
 			
 			/*------------------------------
