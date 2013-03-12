@@ -208,6 +208,10 @@ dreamengine.loadedModules = {
 
 dreamengine.loadModule = function(name, callback) {
 	console.log('loading module ' + name +'...');
+	if (dreamengine.loadedModules[name] == true) {
+		console.log('Module ' + name +' is already loaded, skipping.');
+		return false;
+	}
 	dreamengine.loadedModules[name] = false;
 
 	var src = dreamengine.settings.dreamengineURL +'modules/' + name +'/' + name +'.js';
@@ -224,11 +228,13 @@ dreamengine.loadModule = function(name, callback) {
 };
 
 dreamengine.loadModules = function(modules, callback) {
-	var modules = modules.replace(' ', '');
-	modules = modules.split(',');
-	for (var i in modules) {
-		var mod = modules[i];
-		dreamengine.loadModule(mod);
+	if (typeof modules === 'string') {
+		var modules = modules.replace(' ', '');
+		modules = modules.split(',');
+		for (var i in modules) {
+			var mod = modules[i];
+			dreamengine.loadModule(mod);
+		}
 	}
 
 	if (typeof callback == 'function') {
@@ -268,11 +274,14 @@ dreamengine.registerModule = function(name) {
 
 			for (var i in modules) {
 				var mod = modules[i];
+				console.log('Checking dependency ' + mod);
 				if (dreamengine.loadedModules[mod] != true) {
 					console.log('module ' + mod +' is not loaded, loading it...');
 					dreamengine.loadModule(mod, function() {
 						modulesReady[mod] = true;
 					});
+				}else {
+					modulesReady[mod] = true;
 				}
 			}
 			//set an interval to check when dependenies are ready

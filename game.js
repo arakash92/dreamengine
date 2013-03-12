@@ -45,7 +45,7 @@ dreamengine.loadAssets({
 	'sounds': {
 		'loading': 'sounds/loading.mp3',
 	},
-	'modules': 'Entity',
+	'modules': 'Entity, Player',
 }, function() {
 	/*------------------------------
 	 * Setup the loading screen
@@ -173,8 +173,10 @@ dreamengine.loadAssets({
 					//check if the player exists
 					
 					var e = new dreamengine.Entity(game, p.name, p.x, p.y);
-					e.debug = true;
-					self.players[p.name] = e;
+					if (p.name != self.name) {
+						e.debug = true;
+						self.players[p.name] = e;
+					}
 					
 				}
 			});
