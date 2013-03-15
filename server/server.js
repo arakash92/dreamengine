@@ -1,6 +1,5 @@
-//load libraries
-var Squelize = require("sequelize")
-var io = require('socket.io').listen(8080);
+//initialzie Sequelize
+var Sequelize = require("sequelize");
 
 //setup a mysql connection using Sequelize
 var sequelize = new Sequelize('etheria', 'afflicto', '', {
@@ -39,25 +38,25 @@ var sequelize = new Sequelize('etheria', 'afflicto', '', {
 	// so defining the timestamps for each model will be not necessary
 	// Below you can see the possible keys for settings. All of them are explained on this page
 	define: {
-		underscored: false
+		underscored: false,
 		freezeTableName: false,
 		syncOnAssociation: true,
 		charset: 'utf8',
 		collate: 'utf8_general_ci',
 		//classMethods: {method1: function() {}},
 		//instanceMethods: {method2: function() {}},
-		timestamps: true
+		timestamps: true,
 	},
 
 	// similiar for sync: you can define this to always force sync for models
-	sync: { force: true }
+	sync: { force: true },
 
 	// sync after each association (see below). If set to false, you need to sync manually after setting all associations. Default: true
-	syncOnAssociation: true
+	syncOnAssociation: true,
 
 	// use pooling in order to reduce db connection overload and to increase speed
 	// currently only for mysql and postgresql (since v1.5.0)
-	pool: { maxConnections: 5, maxIdleTime: 30}
+	pool: { maxConnections: 5, maxIdleTime: 30},
 });
 
 
@@ -81,41 +80,54 @@ var Foo = sequelize.define('Foo', {
 
 var Account = sequelize.define('Account', {
 	lastLogin: { type: Sequelize.DATE, defaultValue: Sequelize.NOW },
-	userName: { type: Sequelize.STRING },
+	username: { type: Sequelize.STRING },
 	password: { type: Sequelize.STRING },
-	email: { type: Sequelize.STRING },
 });
 
 
 
-/*
-function vector(x, y) {
-	if (x == undefined) {
-		x = 0;
-	}
-	if (y == undefined) {
-		y = 0;
-	}
-	this.x = x;
-	this.y = y;
-}
+
 function Player(name, x, y) {
 	this.name = name;
 	this.x = x;
 	this.y = y;
-	this.velocity = new vector();
 }
 
 //hash of players active
-var players = {};
+var accounts = {};
+
+
+/*------------------------------
+ * Initialize socket IO
+ *------------------------------*/
+var io = require('socket.io').listen(8080);
+
+//io.set('log_level', 1);
 
 io.sockets.on('connection', function (socket) {
-	
 
-	socket.on('connect', function(data) {
-		players[data.name] = new Player(data.name, 100,100);
+	socket.emit('connect', {message: 'Connected'});
+
+	socket.on('login', function(data) {
+		
+		Account.find({ where: {username: data.username, password: data.password} }).success(function(account) {
+			var status;
+			if (account != null) {
+				status = 'success';
+				accounts[account.id] = {
+					'socket': socket,
+					'model': account
+				};
+			}else {
+				status = 'error';
+			}
+
+			socket.emit('login', {status: status});
+		});
+		
 	});
 
+	/*
 	socket.on('player.move', function (data) {
 		players[data.name].x = data.x;
 		players[data.name].y = data.y;
@@ -124,6 +136,6 @@ io.sockets.on('connection', function (socket) {
   	socket.on('fetch.players', function(data) {
 		socket.emit('fetch.players', players);
   	});
+	*/
 
 });
-*/

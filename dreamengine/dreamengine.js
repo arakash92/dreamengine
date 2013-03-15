@@ -29,6 +29,21 @@
 }());
 
 
+/*------------------------------
+ * Utility functions
+ *------------------------------*/
+Math.randomBetween = function(min, max) {
+	if (min > max) {
+		trigger_error('Math.randomBetween expects max to be greater than min.');
+		return false;
+	}
+	if (min > 0) {
+		return min + (Math.random() * (max-min));
+	}else {
+		return min + Math.random() * (max + Math.abs(min));
+	}
+}
+
 
 function dreamengine(wrapper, options) {
 	var self = this;
@@ -54,31 +69,38 @@ function dreamengine(wrapper, options) {
 	this.wrapper.addClass('dreamengine');
 	this.wrapper.append('<canvas width="' +options['width'] +'" height="' +options['height'] +'" class="canvas"></canvas>');
 	this.canvas = this.wrapper.find('canvas')[0];
-
+	this.ctx = this.canvas.getContext('2d');
 
 	this.resize = function() {
-		var width = $(window).width();
-		var height = width / 16*9;
-		
-		if (height > $(window).height()) {
+		//set canvas dimensions
+		var width = 1280;
+		var height = 720;
+
+		if ($(window).width() < 1280) {
+			//1280x768
+			width = 1024;
+			height = 768;
+		}
+		if ($(window).width() < 1024) {
+			//800x600
+			width = 800;
+			height = 600;
+		}
+		if ($(window).width() < 800) {
+			width = $(window).width();
 			height = $(window).height();
-			width = height * 16/9;
 		}
 
-		if (width > $(window).width()) {
-			width = $(window).width();
-			height = width / 16*9;
-		}
+		this.canvas.width = width;
+		this.canvas.height = height;
 
 		this.wrapper.css({
 			width: width,
 			height: height,
-			'left': ($(window).width() - width) /2
+			'left': ($(window).width() - width) / 2
 		});
-
-		this.ctx = this.canvas.getContext('2d');
+		this.event.trigger('resize');
 	}
-	this.resize();
 	$(window).bind('resize', function() {
 		self.resize();
 	});
@@ -88,11 +110,12 @@ function dreamengine(wrapper, options) {
 	this.wrapper.append('<div style="color: white;" class="debug"></div>');
 	
 	/* systems */
-	this.event = new dreamengine.event();
-	this.input = new dreamengine.input(this);
+	this.event = new dreamengine.Event();
+	this.input = new dreamengine.Input(this);
 
 
 	/* gameloop stuff */
+	this.running = false;
 	this.frame_time  = 0;		//amount of time in MS for one update
 	this.currentTime = 0;		//the current time
 	this.prevTime    = 0;		//the previous time
@@ -119,9 +142,14 @@ function dreamengine(wrapper, options) {
 
 		self.currentTime = (new Date()).getTime();
 		self.prevTime = (new Date()).getTime();
-
+		self.running = true;
 		self.gameloop();
 	};
+
+	this.pause = function() {
+		self.running = false;
+		console.log('game paused.');
+	}
 
 	this.debugMessages = {};
 	this.debug = function(key, value) {
@@ -129,42 +157,47 @@ function dreamengine(wrapper, options) {
 	}
 
 	this.gameloop = function() {
-		setTimeout(function() {
-			requestAnimationFrame(self.gameloop);
-
-			self.currentTime = (new Date()).getTime();
-			self.deltaTime = self.currentTime - self.prevTime;
-			self.prevTime = self.currentTime;
-
-			//deltaTime should be 16.666. (time between updates)
-			//we need to divide deltatime by 16.6666 (frame_time)
-			if (self.perSecond == null) {
-				self.perSecond = self.currentTime;
-			}
-			if (self.currentTime - self.perSecond >= 1000) {
-				self.perSecond = self.currentTime;
-				self.updatesPerSecond = self.updates;
-				self.rendersPerSecond = self.renders;
-				self.updates = 0;
-				self.renders = 0;
-				self.debug('Deltatime', self.deltaTime);
-				self.debug('Updates', self.updatesPerSecond +'/s');
-				self.debug('Renders', self.rendersPerSecond +'/s');
-				
-
-				self.wrapper.find('.debug').html("");
-				for (var i in self.debugMessages) {
-					self.wrapper.find('.debug').append(i +': ' + self.debugMessages[i] +'<br>');
-				}
-			}
-
-			for (var i = 0; i < Math.round(self.deltaTime/self.frame_time); i++) {
-				self.update();
-			}
 		
-			self.render();
+		if (self.running == true) {
+			setTimeout(function() {
+				requestAnimationFrame(self.gameloop, self.canvas);
 
-		}, self.frame_time);
+				self.currentTime = (new Date()).getTime();
+				self.deltaTime = self.currentTime - self.prevTime;
+				self.prevTime = self.currentTime;
+
+				//deltaTime should be 16.666. (time between updates)
+				//we need to divide deltatime by 16.6666 (frame_time)
+				if (self.perSecond == null) {
+					self.perSecond = self.currentTime;
+				}
+				if (self.currentTime - self.perSecond >= 1000) {
+					self.perSecond = self.currentTime;
+					self.updatesPerSecond = self.updates;
+					self.rendersPerSecond = self.renders;
+					self.updates = 0;
+					self.renders = 0;
+					self.debug('Deltatime', self.deltaTime);
+					self.debug('Updates', self.updatesPerSecond +'/s');
+					self.debug('Renders', self.rendersPerSecond +'/s');
+
+					
+					
+
+					self.wrapper.find('.debug').html("");
+					for (var i in self.debugMessages) {
+						self.wrapper.find('.debug').append(i +': ' + self.debugMessages[i] +'<br>');
+					}
+				}
+
+				for (var i = 0; i < Math.round(self.deltaTime/self.frame_time); i++) {
+					self.update();
+				}
+			
+				self.render();
+
+			}, self.frame_time);
+		}
 	};
 
 	self.update = function() {
@@ -181,6 +214,7 @@ function dreamengine(wrapper, options) {
 			this.activeScene.render(this.ctx);
 		}
 	}
+	this.resize();
 }
 
 
@@ -207,6 +241,7 @@ dreamengine.loadedModules = {
 };
 
 dreamengine.loadModule = function(name, callback) {
+	var name = name.replace(' ', '');
 	console.log('loading module ' + name +'...');
 	if (dreamengine.loadedModules[name] == true) {
 		console.log('Module ' + name +' is already loaded, skipping.');
@@ -406,15 +441,19 @@ dreamengine.loadAssets = function(assets, callback) {
 /*------------------------------
  * Scenes
  *------------------------------*/
-dreamengine.scene = function(game, methods) {
+dreamengine.Scene = function(game, methods) {
 	//properties
 	this.game = game;
 	this.layers = [];
-	this.event = new dreamengine.event();
+	this.event = new dreamengine.Event();
 
 	//methods
 
 	this.addEntity = function(layer, entity) {
+		if (entity === undefined) {
+			trigger_error('addEntity expects parameter 2 to be dreamengine.Entity');
+			return false;
+		}
 		if (this.layers[layer] == undefined) {
 			this.layers[layer] = [];
 		}
@@ -422,7 +461,7 @@ dreamengine.scene = function(game, methods) {
 	}
 
 	this.update = function() {
-		this.event.trigger('update_pre');
+		//this.event.trigger('update_pre');
 
 		for (var i in this.layers) {
 			var layer = this.layers[i];
@@ -438,11 +477,11 @@ dreamengine.scene = function(game, methods) {
 			this.onUpdate();
 		}
 
-		this.event.trigger('update_post');
+		//this.event.trigger('update_post');
 	}
 
 	this.render = function(ctx) {
-		this.event.trigger('render_pre', [ctx]);
+		//this.event.trigger('render_pre', [ctx]);
 
 		for (var i in this.layers) {
 			var layer = this.layers[i];
@@ -457,7 +496,7 @@ dreamengine.scene = function(game, methods) {
 		if (typeof this.onRender == 'function') {
 			this.onRender(ctx);
 		}
-		this.event.trigger('render_post', [ctx]);
+		//this.event.trigger('render_post', [ctx]);
 	}
 
 	//override methods
@@ -474,21 +513,31 @@ dreamengine.scene = function(game, methods) {
 /*------------------------------
  * Input
  *------------------------------*/
-dreamengine.input = function(game) {
+dreamengine.Input = function(game) {
 	var self = this;
 	this.game = game;	
 	this.keys = {};
 
 	$(document).keydown(function(e) {
-		//console.log(+'input down: ' + e.which + ' = ' + dreamengine.input.keyNames[e.which]);
-		self.keys[dreamengine.input.keyNames[e.which]] = true;
+		self.keys[dreamengine.Input.keyNames[e.which]] = true;
 	});
 
 	$(document).keyup(function(e) {
-		self.keys[dreamengine.input.keyNames[e.which]] = false;
+		self.keys[dreamengine.Input.keyNames[e.which]] = false;
+	});
+
+	$(document).bind('mousemove', function(e) {
+		var x = e.pageX;
+		var y = e.pageY;
+
+		var canvasOffset = $(self.game.canvas).offset();
+
+		x -= canvasOffset.left;
+
+		y -= canvasOffset.top;
 	});
 }
-dreamengine.input.keyCodes = {
+dreamengine.Input.keyCodes = {
 		'backspace':8,
 		'tab':9,
 		'enter':13,
@@ -589,17 +638,17 @@ dreamengine.input.keyCodes = {
 		'single_quote':222
 	};
 
-dreamengine.input.keyNames = {};
-for (var i in dreamengine.input.keyCodes) {
-	var value = dreamengine.input.keyCodes[i];
-	dreamengine.input.keyNames[value] = i;
+dreamengine.Input.keyNames = {};
+for (var i in dreamengine.Input.keyCodes) {
+	var value = dreamengine.Input.keyCodes[i];
+	dreamengine.Input.keyNames[value] = i;
 }
 
 
 /*------------------------------
  * Event
  *------------------------------*/
-dreamengine.event = function() {
+dreamengine.Event = function() {
 	this.listeners = [];
 	
 	this.bind = function(eventName, closure, priority) {
@@ -655,18 +704,17 @@ dreamengine.event = function() {
 	};
 
 	this.trigger = function(eventName, params) {
-		
 		if (this.listeners[eventName] != undefined) {
 			for (var i in this.listeners[eventName]) {
 				var priority = this.listeners[eventName][i];
 
 				for (var i in priority) {
-					if (typeof params != undefined) {
+					if (typeof params !== undefined) {
 						if (typeof priority[i] == 'function') {
-							priority[i](params);
+							priority[i].call(null, params);
 						}else if (typeof priority[i] == 'array') {
 							for (var ii in priority[i]) {
-								priority[i][ii](params);
+								priority[i][ii].call(null, params);
 							}
 						}
 					}else {
@@ -679,18 +727,18 @@ dreamengine.event = function() {
 		return params;
 	}
 };
-dreamengine.event.event = new dreamengine.event();
+dreamengine.Event.event = new dreamengine.Event();
 
 
 /*-------------------
 	Utility
 */
-dreamengine.dimension = function(w, h) {
+dreamengine.Dimension = function(w, h) {
 	this.width = w;
 	this.height = h;
 };
 
-dreamengine.vector = function(x, y) {
+dreamengine.Vector = function(x, y) {
 	if (x == undefined) {
 		x = 0;
 	}

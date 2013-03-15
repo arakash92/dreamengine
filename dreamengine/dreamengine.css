@@ -4,19 +4,37 @@ body {
 	padding: 0;
 }
 .dreamengine {
-	position: absolute;
+	position: relative;
 	font-family: monospace;
 	background: #000;
 	top: 0px;
 }
 .dreamengine canvas {
-	width: 100%;
-	height: 100%;
+	width: auto;
+	height: auto;
 	margin: 0;
 	padding: 0;
+	position: absolute;
+	top: 0px;
+	left: 0px;
+}
+.dreamengine .gui {
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	width: 100%;
+	height: 100%;
+	z-index: 5;
 }
 .dreamengine .debug {
 	top: 0px;
 	left: 0px;
 	position: absolute;
+	z-index: 10;
+	background-color: rgba(0,0,0,0.3);
+	padding: 6px;
+	font-size: 0.9em;
+}
+.dreamengine .debug:hover {
+	background-color: rgba(0,0,0,0.8);
 }

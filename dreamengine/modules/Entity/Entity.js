@@ -2,43 +2,26 @@ dreamengine.registerModule('Entity')
 	.defines(function() {
 		dreamengine.Entity = function(game, name, x, y) {
 			/*------------------------------
-			 * Private variables
-			 *------------------------------*/
-			var game = game;
-
-
-
-			/*------------------------------
 			 * Properties
 			 *------------------------------*/
+			this.game = game;
 			this.name = (name != undefined) ? name : 'Unnamed Entity';
 			this.namePrepend = '';
 			this.nameAppend = '';
 			this.debug = false;
-			this.pos = new dreamengine.vector();
-			this.originX = 'center';
-			this.originY = 'center';
-			this.size = new dreamengine.dimension(10,10);
-			this.event = new dreamengine.event();
+			this.event = new dreamengine.Event();
+			this.components = {};
+			this.sprite = null;
+
 			
 			/*------------------------------
-			 * Constructor
+			 * Setup a new transform component
 			 *------------------------------*/
-			this.pos.x = (x != undefined) ? x : 0;
-			this.pos.y = (y != undefined) ? y : 0;
-
-			/*------------------------------
-			 * Methods
-			 *------------------------------*/
-			this.setOrigin = function(origin) {
-				origin = origin.toLowerCase();
-				origin = origin.split(' ');
-				var x = origin[0];
-				var y = (origin[1] != undefined) ? origin[1] : x;
-
-				this.originX = x;
-				this.originY = y;
-			}
+			this.components.transform = new dreamengine.Transform();
+			this.components.transform.size.width = 40;
+			this.components.transform.size.height = 40;
+			this.components.transform.pos.x = (x != undefined) ? x : 0;
+			this.components.transform.pos.y = (y != undefined) ? y : 0;
 
 			this.updateComponents = function() {
 				this.event.trigger('updateComponents_pre');
@@ -65,71 +48,83 @@ dreamengine.registerModule('Entity')
 			this.renderDebug = function(g, force) {
 				this.event.trigger('renderDebug_pre', [g]);
 				if (this.debug || force == true) {
-					var x = this.pos.x;
-					var y = this.pos.y;
+					var tf = this.components.transform;
+					var area = tf.getArea();
 
-					//apply origin offset
-					switch(this.originX) {
-						case 'center':
-							x-= this.size.width / 2;
-						break;
-
-						case 'right':
-							x-= this.size.width;
-						break;
-					}
-
-					switch(this.originY) {
-						case 'center':
-							y-= this.size.height / 2;
-						break;
-
-						case 'bottom':
-							y-= this.size.height;
-						break;
-					}
-
-					//draw size box
+					//draw box around perimeter
 					g.globalAlpha = 0.3;
 					g.fillStyle = 'white';
-					g.fillRect(x, y, this.size.width, this.size.height);
+					g.fillRect(area.left, area.top, tf.size.width, tf.size.height);
 
-					//draw origin points
+
+					//draw corner points
 					g.globalAlpha = 1;
 					g.fillStyle = '#FF5555';
+					//left top
+					g.fillRect(area.left-2 , area.top-2, 4, 4);
 
-					//top left
-					g.arc(
-						x - this.size.width,
-						y - this.size.height,
-						4,
-						0,
-						2 * Math.PI, true);
+					//center top
+					g.fillRect(area.centerX-2 , area.top-2, 4, 4);
+
+					//right top
+					g.fillRect(area.right-2 , area.top-2, 4, 4);
+
+					//left bottom
+					g.fillRect(area.left-2 , area.bottom-2, 4, 4);
+
+					//center bottom
+					g.fillRect(area.centerX-2 , area.bottom-2, 4, 4);
+
+					//right bottom
+					g.fillRect(area.right-2 , area.bottom-2, 4, 4);
+
+					//center
+					g.fillStyle = '#5555FF';
+					g.fillRect(area.centerX-2, area.centerY-2, 4, 4);
+
 
 					//draw name
-					y -= this.size.height+10;
-					g.globalAlpha = 1;
 					g.fillStyle = 'white';
-					g.fillText(this.namePrepend + this.name + this.nameAppend, x, y);
+
+					//get font metrics
+					var textString = this.namePrepend + this.name + this.nameAppend;
+					var metrics = g.measureText(textString);
+
+					
+					g.fillText(this.namePrepend + this.name + this.nameAppend, area.centerX - (metrics.width / 2), area.top - 10);
+					
 				}
 				this.event.trigger('renderDebug_post', [g]);
 			}
 
 			this.update = function() {
 				this.event.trigger('update_pre');
+
 				this.updateComponents();
+
 				this.event.trigger('update_post');
+			}
+
+			this.renderSprite = function(g) {
+				if (this.sprite != null) {
+					var area = this.components.transform.getArea();
+					g.globalAlpha = 1;
+					g.drawImage(this.sprite, area.left, area.top, area.right - area.left, area.bottom - area.top);
+				}
 			}
 
 			this.render = function(g) {
 				this.event.trigger('render_pre', [g]);
+
 				this.renderComponents(g);
+				this.renderSprite(g);
 				this.renderDebug(g);
+
 				this.event.trigger('render_post', [g]);
 			}
 
 
 			//fire init event
-			dreamengine.event.event.trigger('entity.create', [this]);
+			dreamengine.Event.event.trigger('entity.create', [this]);
 		};
 	});

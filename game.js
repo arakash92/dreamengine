@@ -5,206 +5,221 @@
  * the dreamengine files are stored
  *------------------------------*/
 dreamengine.setup({
-	dreamengineURL: 'http://localhost/dreamengine/dreamengine/',
-	projectURL: 'http://localhost/dreamengine/project/',
+	dreamengineURL: 'http://192.168.1.137/dreamengine/dreamengine/',
+	projectURL: 'http://192.168.1.137/dreamengine/project/',
 });
-
 
 
 /*------------------------------
  * Create a new game instance
  *------------------------------*/
 var game = new dreamengine('#rpg', {
-	width: 380,
-	height: 214,
+	width: 480,
+	height: 320,
 });
 
-//disale image smoothing on the canvas context
+
+/*------------------------------
+ * Set context defaults
+ * disable image smoothing
+ * and set the font
+ *------------------------------*/
 game.ctx.imageSmoothingEnabled = false;
 game.ctx.mozImageSmoothingEnabled = false;
 game.ctx.webkitImageSmoothingEnabled = false;
-
-//set the default font
 game.ctx.font = "12px monospace";
 
 
 /*------------------------------
  * Initialize socket connection
  *------------------------------*/
-game.socket = io.connect('http://localhost:8080');
+socket = io.connect('http://192.168.1.137:8080');
+var userAccount = null;
+
 
 
 /*------------------------------
- * Load all the assets for
- * the loading screen
+ * Load assets
  *------------------------------*/
 dreamengine.loadAssets({
 	'images': {
 		//'logo': 'sprites/logo.png',
+		'loginscreen': 'backgrounds/white_mountains.png',
+		'atlas': 'world/atlas.png',
 	},
 	'sounds': {
 		'loading': 'sounds/loading.mp3',
 	},
-	'modules': 'Entity, Player',
+	'modules': 'Entity, Player, ParticleSystem, Atlas, World',
 }, function() {
+
+
+
+
+	
 	/*------------------------------
-	 * Setup the loading screen
+	 * Setup the world scene
 	 *------------------------------*/
-	var scene = new dreamengine.scene(game, {
-
-		init: function() {
+	var worldScene = new dreamengine.Scene(game, {
+		initialize: function() {
 			var self = this;
-			//prepare players variable
-			this.players = {};
-
-			//get player name
-			this.name = prompt("player name:");
-			
-			//authenticate
-	  		game.socket.emit('connect', {'name': this.name});
-
 			/*------------------------------
-			 * Chatbox
+			 * First, we want to load the world atlas
 			 *------------------------------*/
-			var chatbox = new dreamengine.Entity(game, "Chat", 174, 0);
-			this.addEntity(50, chatbox);
-			chatbox.size.x = 100;
-			chatbox.size.y = 40;
-			chatbox.messages = [];
-			chatbox.message = function(type, message) {
-				//we prepend/unshift because the newest message shold be at 0
-				this.messages.unshift({'type': type, 'message': message, time: (new Date()).getTime()});
-			}
-			chatbox.event.bind('update_pre', function() {
-				//get current time
-				var now = (new Date()).getTime();
+			this.atlas = new dreamengine.Atlas(dreamengine.images['atlas'], 'world/atlas.json', function() {
+				//now that it's ready, let's create a new World
+				self.world = new dreamengine.World(game, self.atlas);
 
-				//create a temporary array for holding
-				//messages that will be displayed
-				var messagesDisplay = [];
+				//load our world tilemap
+				self.world.parseWorld('world/world.json', function() {
+					console.log('world is ready');
 
-				//remove old messages
-				for (var i in this.messages) {
-					var msg = this.messages[i];
+					//render the world
+					self.onRender = function(g) {
+						
+						self.world.render(g);
 
-					//is this message old?
-					if (now - msg.time >= 5000) {
-						//trash it
-						this.messages.splice(i, 1);
-					}else {
-						//it's not old, so we'll display it
-
-						//is the message about to get old?
-						if (now - msg.time >= 4000) {
-							//get opacity based on time
-							//since opacity is 0.0 to 1.0, we'll first subtract 4000
-							//which is the 4 seconds that elapse before we fade it out
-							var difference = now - msg.time;
-							difference -= 4000;
-
-							//set the message opacity
-							msg.opacity = difference / 1000;
+						if (game.input.keys['w']) {
+							self.world.camera.y -= 1;
 						}
+						if (game.input.keys['s']) {
+							self.world.camera.y += 1;
+						}
+						if (game.input.keys['a']) {
+							self.world.camera.x -= 1;
+						}
+						if (game.input.keys['d']) {
+							self.world.camera.x += 1;
+						}
+					};
+				});
 
-						messagesDisplay.push(msg);
-					}
-				}
-
-				//get the font metrics
-
-
-				//now display the messages
-				for (var i in messagesDisplay) {
-					var msg = messagesDisplay[i];
-					ctx.fillStyle = 'white';
-					ctx.fillText('[' + msg.type + '] ' + msg.message, this.pos.x, this.pos.y - (12 * (i+1)));
-				}
 			});
-
-
-
-			
-
-			var player = new dreamengine.Entity(game, this.name, 100, 100);
-			
-			player.speed = 3;
-
-			player.event.bind('update_pre', function() {
-				player.moving = false;
-
-				if (game.input.keys['w']) {
-					player.pos.y -= player.speed;
-					player.moving = true;
-				}
-				if (game.input.keys['s']) {
-					player.pos.y += player.speed;
-					player.moving = true;
-				}
-				if (game.input.keys['a']) {
-					player.pos.x -= player.speed;
-					player.moving = true;
-				}
-				if (game.input.keys['d']) {
-					player.pos.x += player.speed;
-					player.moving = true;
-				}
-
-				if (player.moving) {
-					player.event.trigger('move');
-				}
-			});
-
-
-			/*------------------------------
-			 * Socket Player Move
-			 *------------------------------*/
-			player.event.bind('move', function() {
-				game.socket.emit('player.move', {'name': player.name, 'x': player.pos.x, 'y': player.pos.y});
-			});
-
-			/*------------------------------
-			 * Socket fetch players
-			 *------------------------------*/
-			self.players = {};
-			game.socket.on('fetch.players',function(data) {
-				var players = data;
-				for (var i in players) {
-					var p = players[i];
-					//check if the player exists
-					
-					var e = new dreamengine.Entity(game, p.name, p.x, p.y);
-					if (p.name != self.name) {
-						e.debug = true;
-						self.players[p.name] = e;
-					}
-					
-				}
-			});
-
-
-			player.debug = true;
-			this.addEntity(10, player);
-			
-		},
-
-		onUpdate: function() {
-			var self = this;
-			game.socket.emit('fetch.players', {'name': this.name});
-
-			for (var i in this.players) {
-				this.players[i].update();
-			}
-		},
-
-		onRender: function(g) {
-			for (var i in this.players) {
-				this.players[i].render(g);
-			}
 		},
 	});
 
-	game.setScene(scene);
 
+
+
+	/*------------------------------
+	 * Setup the login screen
+	 *------------------------------*/
+	var loginscreen = new dreamengine.Scene(game, {
+		init: function() {
+			var self = this;
+			this.gui = $(".gui-loginscreen");
+
+
+			/*------------------------------
+			 * Create the background entity
+			 * this is for the falling snow
+			 *------------------------------*/
+			var background = new dreamengine.Entity(game, 'background');
+			background.sprite = dreamengine.images['loginscreen'];
+			var tf = background.components.transform;
+			tf.setOrigin('top left');
+			tf.pos.x = 0;
+			tf.pos.y = 0;
+			tf.size.width = game.canvas.width;
+			tf.size.height = game.canvas.height;
+			this.addEntity(0, background);
+
+			game.event.bind('resize', function() {
+				tf.size.width = game.canvas.width;
+				tf.size.height = game.canvas.height;
+			});
+
+			/*------------------------------
+			 * Falling dust particle system
+			 *------------------------------*/
+			var snow = new dreamengine.Entity(game, 'snow');
+				//enable debug, set position, size and origin
+				snow.debug = false;
+				snow.components.transform.size.width = game.canvas.width;
+				game.event.bind('resize', function() {
+					snow.components.transform.size.width = game.canvas.width;
+				});
+				snow.components.transform.size.height = 0;
+				snow.components.transform.pos.x = game.canvas.width / 2;
+				snow.components.transform.pos.y = 0;
+				snow.components.transform.setOrigin('top center');
+
+				snow.components.psystem = new dreamengine.ParticleSystem(snow, {
+					birthRate: 0.5,
+					maxParticles: 200,
+					particleLife: 18000,
+					particleSpeed: 0.3,
+					particleDamping: 0.0,
+					particleSize: 'random',
+					particleSizeMin: 1,
+					particleSizeMax: 5,
+					particleShape: 'circle',
+					gravity: 0.5,
+				});
+
+				var psystem = snow.components.psystem;
+				psystem.transform.size.width = game.canvas.width;
+				psystem.transform.size.height = 0;
+				psystem.debug = false;
+				psystem.setAnchor('top center');
+				psystem.transform.setOrigin('top center');
+			self.addEntity(1, snow);
+
+			
+
+			/*------------------------------
+			 * Socket Login
+			 *------------------------------*/
+			socket.on('login', function(data) {
+				if (data.status == 'success') {
+					self.gui.hide('fade', 1000);
+					game.setScene(worldScene);
+					worldScene.initialize();
+				}else {
+					console.log('login error');
+				}
+				self.gui.find('form input').removeAttr('disabled');
+				self.gui.find('form').css('opacity', 1);
+				self.gui.find('.loginstatus').hide();
+			});
+
+
+			/*------------------------------
+			 * Login form
+			 *------------------------------*/
+			self.gui.find('form').submit(function(e) {
+				e.preventDefault();
+				$(this).find('input').attr('disabled', 'disabled');
+				$(this).css('opacity', 0.2);
+
+				self.gui.find('.loginstatus').html('Connecting...').show('fade');
+
+				var username = $(this).find('.username').val();
+				var password = $(this).find('.password').val();
+
+				//attempt login
+				socket.emit('login', {'username': username, 'password': password});
+			});
+
+
+
+			/*------------------------------
+			 * Fade in the scene
+			 *------------------------------*/
+			setTimeout(function() {
+				self.gui.show('fade', 3000);
+			}, 500);
+		},
+	});
+
+	
+	/*------------------------------
+	 * Set the initial screen to
+	 * the loginscreen, then run the game
+	 *------------------------------*/
+	game.setScene(worldScene);
+	worldScene.initialize();
+	$(".gui-loginscreen").hide();
 	game.run();
 });
 

@@ -1,18 +1,16 @@
 dreamengine.registerModule('Component')
 	.requires('Entity')
 	.defines(function() {
-		/*------------------------------
-		 * Create the component class
-		 *------------------------------*/
-		dreamengine.Component = function(entity) {
+
+		dreamengine.Entity.Component = function(entity) {
 			this.entity = entity;
+			this.pos = new dreamengine.Vector();
+			this.size = new dreamengine.Size(10,10);
 
-			this.update = function() {
+			this.getArea = function() {
+				var area = this.entity.getArea();
 				
 			}
+		}
 
-			this.render = function(g) {
-				
-			}
-		};
 	});
